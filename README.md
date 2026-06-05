@@ -34,9 +34,16 @@ Usage: selective [OPTIONS]
 Options:
   -p, --prompt <PROMPT>   Header text [default: "Select:"]
       --height <HEIGHT>   Maximum number of list rows [default: 10]
+      --simple            Use the minimal rendering (1-line header + plain list)
   -h, --help              Help
   -V, --version           Version
 ```
+
+By default `selective` renders a rich inline TUI: a rounded cyan border with
+the prompt embedded on the top edge, an `n/total` counter on the right, and a
+dimmed key-hint footer below. Pass `--simple` to fall back to the original
+1-line header + reverse-video cursor list, which is lighter and uses fewer
+rows.
 
 ### Exit codes
 

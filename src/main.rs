@@ -26,6 +26,10 @@ struct Cli {
     /// Max rows for the list viewport
     #[arg(long, default_value_t = 10)]
     height: u16,
+
+    /// Use the minimal rendering (1-line header + plain list)
+    #[arg(long)]
+    simple: bool,
 }
 
 enum Outcome {
@@ -78,7 +82,9 @@ fn run() -> Result<Outcome> {
     enable_raw_mode().context("enabling raw mode")?;
     let _raw_guard = RawGuard;
 
-    let viewport_h = cli.height.min(items.len() as u16).saturating_add(1).max(2);
+    let list_rows = cli.height.min(items.len() as u16);
+    let extra = if cli.simple { 1 } else { 7 };
+    let viewport_h = list_rows.saturating_add(extra).max(extra + 1);
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::with_options(
         backend,
@@ -87,7 +93,7 @@ fn run() -> Result<Outcome> {
     execute!(terminal.backend_mut(), Hide)?;
 
     let mut app = App::new(items, cli.prompt, cli.height);
-    let outcome = event_loop(&mut terminal, &mut app);
+    let outcome = event_loop(&mut terminal, &mut app, cli.simple);
 
     // `terminal.clear()` in Inline mode rewinds the cursor to viewport top
     // and clears from there to end of screen, so the shell prompt resumes
@@ -149,11 +155,12 @@ impl Drop for RawGuard {
 fn event_loop<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
+    simple: bool,
 ) -> Result<Outcome> {
     let mut dirty = true;
     loop {
         if dirty {
-            terminal.draw(|f| selective::ui::draw(f, app))?;
+            terminal.draw(|f| selective::ui::draw(f, app, simple))?;
             dirty = false;
         }
         if event::poll(Duration::from_millis(200))? {
