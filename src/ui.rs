@@ -8,7 +8,8 @@ use ratatui::widgets::{
 
 use crate::app::App;
 
-const ACCENT: Color = Color::Cyan;
+const BORDER_COLOR: Color = Color::Reset;
+const CURSOR_COLOR: Color = Color::Cyan;
 
 pub fn draw(f: &mut Frame, app: &App, simple: bool) {
     if simple {
@@ -51,7 +52,9 @@ fn draw_simple(f: &mut Frame, app: &App) {
 
 fn draw_rich(f: &mut Frame, app: &App) {
     let visible = app.visible_range();
-    let list_rows = visible.len() as u16;
+    let overflow = app.items().len() > visible.len();
+    let indicator_rows: u16 = if overflow { 2 } else { 0 };
+    let list_rows = visible.len() as u16 + indicator_rows;
     let box_rows = list_rows.saturating_add(4).max(5);
 
     let [_gap_top, box_area, footer_area, _gap_bottom, _rest] = Layout::vertical([
@@ -67,7 +70,7 @@ fn draw_rich(f: &mut Frame, app: &App) {
         Span::raw(" "),
         Span::styled(
             app.prompt().to_string(),
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(BORDER_COLOR).add_modifier(Modifier::BOLD),
         ),
         Span::raw(" "),
     ]);
@@ -77,35 +80,58 @@ fn draw_rich(f: &mut Frame, app: &App) {
     ))
     .right_aligned();
 
+    let hidden_above = visible.start;
+    let hidden_below = app.items().len().saturating_sub(visible.end);
+
+    let v_pad: u16 = if overflow { 0 } else { 1 };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(ACCENT))
-        .padding(Padding::new(1, 1, 1, 1))
+        .border_style(Style::default().fg(BORDER_COLOR))
+        .padding(Padding::new(1, 1, v_pad, v_pad))
         .title(title_left)
         .title(title_right);
 
     let cursor_local = app.cursor().saturating_sub(visible.start);
-    let items: Vec<ListItem> = app.items()[visible.clone()]
-        .iter()
-        .enumerate()
-        .map(|(i, s)| {
-            if i == cursor_local {
-                ListItem::new(Line::from(vec![
-                    Span::styled(
-                        "❯ ",
-                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        s.as_str(),
-                        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
-                    ),
-                ]))
-            } else {
-                ListItem::new(Line::from(vec![Span::raw("  "), Span::raw(s.as_str())]))
-            }
-        })
-        .collect();
+    let mut items: Vec<ListItem> = Vec::with_capacity(visible.len() + indicator_rows as usize);
+    if overflow {
+        let text = if hidden_above > 0 {
+            format!("  ↑ {hidden_above} more")
+        } else {
+            String::new()
+        };
+        items.push(ListItem::new(Line::from(Span::styled(
+            text,
+            Style::default().add_modifier(Modifier::DIM),
+        ))));
+    }
+    items.extend(app.items()[visible.clone()].iter().enumerate().map(|(i, s)| {
+        if i == cursor_local {
+            ListItem::new(Line::from(vec![
+                Span::styled(
+                    "❯ ",
+                    Style::default().fg(CURSOR_COLOR).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    s.as_str(),
+                    Style::default().fg(CURSOR_COLOR).add_modifier(Modifier::BOLD),
+                ),
+            ]))
+        } else {
+            ListItem::new(Line::from(vec![Span::raw("  "), Span::raw(s.as_str())]))
+        }
+    }));
+    if overflow {
+        let text = if hidden_below > 0 {
+            format!("  ↓ {hidden_below} more")
+        } else {
+            String::new()
+        };
+        items.push(ListItem::new(Line::from(Span::styled(
+            text,
+            Style::default().add_modifier(Modifier::DIM),
+        ))));
+    }
 
     let list = List::new(items).block(block);
     f.render_widget(list, box_area);

@@ -83,7 +83,7 @@ fn run() -> Result<Outcome> {
     let _raw_guard = RawGuard;
 
     let list_rows = cli.height.min(items.len() as u16);
-    let extra = if cli.simple { 1 } else { 7 };
+    let extra: u16 = if cli.simple { 1 } else { 7 };
     let viewport_h = list_rows.saturating_add(extra).max(extra + 1);
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::with_options(
