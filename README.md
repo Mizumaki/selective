@@ -1,7 +1,7 @@
 # selective
 
-A small CLI utility that drops an **interactive single-select UI** into a shell pipeline.
-It reads candidate lines from stdin, lets the user pick one, and writes the selected line **as-is to stdout**.
+A small CLI utility that drops an **interactive selection UI** into a shell pipeline.
+It reads candidate lines from stdin, lets the user pick one (or several, with `-m`), and writes the selected line(s) **as-is to stdout**.
 
 ## Examples
 
@@ -9,6 +9,12 @@ Delete a branch picked from `git branch`:
 
 ```sh
 git branch | sed 's/^[* ] //' | selective --prompt "delete branch:" | xargs -r git branch -D
+```
+
+Delete several branches in one pass with multi-select:
+
+```sh
+git branch | sed 's/^[* ] //' | selective -m --prompt "delete:" | xargs -r git branch -D
 ```
 
 `cd` into a worktree picked from `git worktree list`:
@@ -19,8 +25,8 @@ cd "$(git worktree list | awk '{print $1}' | selective --prompt "cd worktree:")"
 
 ## Features
 
-- **Pure filter**: candidates from stdin, result on stdout. Fits naturally into shell pipelines.
-- **Single-select only**: confirm with Enter.
+- **Pure filter**: candidates from stdin, result(s) on stdout. Fits naturally into shell pipelines.
+- **Single- or multi-select**: single by default; pass `-m` / `--multi` to toggle items with Space and confirm a set with Enter.
 - **Cancel-safe**: Esc / `Ctrl-C` / `q` emits nothing on stdout and exits with **exit code 130**. Combined with `xargs -r`, no downstream command fires.
 - **TTY isolation**: even when stdin is a pipe, key input is read directly from `/dev/tty`, so `cmd | selective | cmd2` just works.
 - Inline TUI built with **ratatui + crossterm** (does not switch the terminal to fullscreen).
@@ -35,6 +41,7 @@ Options:
   -p, --prompt <PROMPT>         Header text [default: "Select:"]
       --height <HEIGHT>         Maximum number of list rows [default: 10]
       --simple                  Use the minimal rendering (1-line header + plain list)
+  -m, --multi                   Enable multi-select (space toggles; Ctrl-A all; Ctrl-D/Ctrl-U clear)
       --border-color <COLOR>    Border + embedded prompt color [default: reset]
       --cursor-color <COLOR>    Cursor arrow + selected row color [default: cyan]
   -h, --help                    Help
@@ -69,6 +76,19 @@ form `#RRGGBB` (e.g. `--cursor-color '#ff8800'`). `reset` (the default for
 - CRLF (`\r\n`) is treated as LF.
 - If there are **0 candidates**, the TUI is not launched and the program exits with 1.
 - If there is **exactly 1 candidate**, the TUI is not launched; that line is written to stdout and the program exits with 0 (auto-confirm).
+
+### Multi-select (`-m` / `--multi`)
+
+In multi-select mode the UI gains a checkbox column and these extra keys:
+
+| key                | action                                                       |
+| ------------------ | ------------------------------------------------------------ |
+| `Space`            | Toggle the item under the cursor                             |
+| `Ctrl-A`           | Select all                                                   |
+| `Ctrl-D` / `Ctrl-U`| Clear all selections                                         |
+| `Enter`            | Confirm — emit every selected line, **in input order**       |
+
+Pressing `Enter` with nothing toggled is a no-op. Movement and cancel keys are unchanged.
 
 ## Development
 
