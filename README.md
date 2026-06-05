@@ -32,18 +32,27 @@ cd "$(git worktree list | awk '{print $1}' | selective --prompt "cd worktree:")"
 Usage: selective [OPTIONS]
 
 Options:
-  -p, --prompt <PROMPT>   Header text [default: "Select:"]
-      --height <HEIGHT>   Maximum number of list rows [default: 10]
-      --simple            Use the minimal rendering (1-line header + plain list)
-  -h, --help              Help
-  -V, --version           Version
+  -p, --prompt <PROMPT>         Header text [default: "Select:"]
+      --height <HEIGHT>         Maximum number of list rows [default: 10]
+      --simple                  Use the minimal rendering (1-line header + plain list)
+      --border-color <COLOR>    Border + embedded prompt color [default: reset]
+      --cursor-color <COLOR>    Cursor arrow + selected row color [default: cyan]
+  -h, --help                    Help
+  -V, --version                 Version
 ```
 
-By default `selective` renders a rich inline TUI: a rounded cyan border with
-the prompt embedded on the top edge, an `n/total` counter on the right, and a
-dimmed key-hint footer below. Pass `--simple` to fall back to the original
-1-line header + reverse-video cursor list, which is lighter and uses fewer
-rows.
+By default `selective` renders a rich inline TUI: a rounded border in the
+terminal's default text color with the prompt embedded on the top edge, an
+`n/total` counter on the right, and a dimmed key-hint footer below. Pass
+`--simple` to fall back to the original 1-line header + reverse-video cursor
+list, which is lighter and uses fewer rows.
+
+`--border-color` and `--cursor-color` accept either a color name
+(`reset` / `default`, `black`, `red`, `green`, `yellow`, `blue`, `magenta`,
+`cyan`, `gray`, `dark-gray`, `light-red`, `light-green`, `light-yellow`,
+`light-blue`, `light-magenta`, `light-cyan`, `white`) or a hex literal in the
+form `#RRGGBB` (e.g. `--cursor-color '#ff8800'`). `reset` (the default for
+`--border-color`) tracks the terminal's current foreground color.
 
 ### Exit codes
 
