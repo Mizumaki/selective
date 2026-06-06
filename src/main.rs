@@ -70,12 +70,9 @@ fn main() -> ExitCode {
 
 fn run() -> Result<Outcome> {
     let cli = Cli::parse();
-    let mut items = read_lines(io::stdin().lock()).context("reading stdin")?;
+    let items = read_lines(io::stdin().lock()).context("reading stdin")?;
     if items.is_empty() {
         anyhow::bail!("no candidates on stdin");
-    }
-    if items.len() == 1 {
-        return Ok(Outcome::Selected(vec![items.swap_remove(0)]));
     }
 
     // Replace fd 0 with a dup of an inherited tty fd. crossterm's

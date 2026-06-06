@@ -32,6 +32,28 @@ cd "$(git worktree list | awk '{print $1}' | selective --prompt "cd worktree:")"
 - Inline TUI built with **ratatui + crossterm** (does not switch the terminal to fullscreen).
 - **macOS / Linux supported** (Windows is out of scope).
 
+## Install
+
+### Homebrew
+
+```sh
+brew install Mizumaki/selective/selective
+```
+
+If you prefer to tap first:
+
+```sh
+brew tap Mizumaki/selective
+brew install selective
+```
+
+To upgrade to the latest release:
+
+```sh
+brew update
+brew upgrade selective
+```
+
 ## Usage
 
 ```
@@ -48,18 +70,9 @@ Options:
   -V, --version                 Version
 ```
 
-By default `selective` renders a rich inline TUI: a rounded border in the
-terminal's default text color with the prompt embedded on the top edge, an
-`n/total` counter on the right, and a dimmed key-hint footer below. Pass
-`--simple` to fall back to the original 1-line header + reverse-video cursor
-list, which is lighter and uses fewer rows.
+By default `selective` renders a rich inline TUI: a rounded border in the terminal's default text color with the prompt embedded on the top edge, an `n/total` counter on the right, and a dimmed key-hint footer below. Pass `--simple` to fall back to the original 1-line header + reverse-video cursor list, which is lighter and uses fewer rows.
 
-`--border-color` and `--cursor-color` accept either a color name
-(`reset` / `default`, `black`, `red`, `green`, `yellow`, `blue`, `magenta`,
-`cyan`, `gray`, `dark-gray`, `light-red`, `light-green`, `light-yellow`,
-`light-blue`, `light-magenta`, `light-cyan`, `white`) or a hex literal in the
-form `#RRGGBB` (e.g. `--cursor-color '#ff8800'`). `reset` (the default for
-`--border-color`) tracks the terminal's current foreground color.
+`--border-color` and `--cursor-color` accept either a color name (`reset` / `default`, `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `gray`, `dark-gray`, `light-red`, `light-green`, `light-yellow`, `light-blue`, `light-magenta`, `light-cyan`, `white`) or a hex literal in the form `#RRGGBB` (e.g. `--cursor-color '#ff8800'`). `reset` (the default for `--border-color`) tracks the terminal's current foreground color.
 
 ### Exit codes
 
@@ -75,7 +88,7 @@ form `#RRGGBB` (e.g. `--cursor-color '#ff8800'`). `reset` (the default for
 - Empty lines are ignored.
 - CRLF (`\r\n`) is treated as LF.
 - If there are **0 candidates**, the TUI is not launched and the program exits with 1.
-- If there is **exactly 1 candidate**, the TUI is not launched; that line is written to stdout and the program exits with 0 (auto-confirm).
+- If there is **exactly 1 candidate**, the TUI is still launched and the user must explicitly confirm the selection (no auto-confirm).
 
 ### Multi-select (`-m` / `--multi`)
 
@@ -128,9 +141,9 @@ printf 'alpha\nbeta\ngamma\n' | ./target/release/selective
 printf 'alpha\nbeta\n' | ./target/release/selective; echo "exit=$?"
 # → Esc / Ctrl-C / q yields exit=130 with empty stdout
 
-# 3. Single line auto-confirms
+# 3. Single line still requires explicit confirmation
 printf 'only\n' | ./target/release/selective
-# → immediately outputs "only" and exits 0
+# → TUI launches with one row; Enter writes "only" and exits 0, Esc exits 130
 
 # 4. Empty input is an error
 : | ./target/release/selective; echo "exit=$?"
