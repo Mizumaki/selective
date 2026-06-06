@@ -5,22 +5,22 @@ It reads candidate lines from stdin, lets the user pick one (or several, with `-
 
 ## Examples
 
-Delete a branch picked from `git branch`:
-
-```sh
-git branch | sed 's/^[* ] //' | selective --prompt "delete branch:" | xargs -r git branch -D
-```
-
 Delete several branches in one pass with multi-select:
 
 ```sh
-git branch | sed 's/^[* ] //' | selective -m --prompt "delete:" | xargs -r git branch -D
+git branch | sed "s/^[* ] //" | selective -m --prompt "Which branches to delete:" | xargs -r git branch -D
 ```
 
 `cd` into a worktree picked from `git worktree list`:
 
 ```sh
-cd "$(git worktree list | awk '{print $1}' | selective --prompt "cd worktree:")"
+gwcd() {
+  local dir
+  dir=$(git worktree list | awk '{print $1}' | selective --prompt "Which worktree to go:") || return
+  cd "$dir"
+}
+
+gwcd
 ```
 
 ## Features
