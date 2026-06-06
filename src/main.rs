@@ -19,7 +19,7 @@ use selective::input::read_lines;
 use selective::theme::{Theme, parse_color};
 
 #[derive(Parser, Debug)]
-#[command(name = "selective", version, about = "Interactive single-select filter")]
+#[command(name = "selective", version, about = "Interactive single- or multi-select filter")]
 struct Cli {
     /// Header line shown above the list
     #[arg(short, long, default_value = "Select:")]
@@ -33,6 +33,10 @@ struct Cli {
     #[arg(long)]
     simple: bool,
 
+    /// Enable multi-select (space toggles, Ctrl-A select all, Ctrl-D/Ctrl-U clear)
+    #[arg(short = 'm', long)]
+    multi: bool,
+
     /// Border + embedded prompt color: name (e.g. "cyan", "light-blue", "reset") or "#RRGGBB"
     #[arg(long, value_name = "COLOR", value_parser = parse_color, default_value = "reset")]
     border_color: Color,
@@ -43,14 +47,17 @@ struct Cli {
 }
 
 enum Outcome {
-    Selected(String),
+    Selected(Vec<String>),
     Cancelled,
 }
 
 fn main() -> ExitCode {
     match run() {
-        Ok(Outcome::Selected(s)) => {
-            let _ = writeln!(io::stdout().lock(), "{s}");
+        Ok(Outcome::Selected(lines)) => {
+            let mut out = io::stdout().lock();
+            for line in lines {
+                let _ = writeln!(out, "{line}");
+            }
             ExitCode::SUCCESS
         }
         Ok(Outcome::Cancelled) => ExitCode::from(130),
@@ -68,7 +75,7 @@ fn run() -> Result<Outcome> {
         anyhow::bail!("no candidates on stdin");
     }
     if items.len() == 1 {
-        return Ok(Outcome::Selected(items.swap_remove(0)));
+        return Ok(Outcome::Selected(vec![items.swap_remove(0)]));
     }
 
     // Replace fd 0 with a dup of an inherited tty fd. crossterm's
@@ -103,7 +110,7 @@ fn run() -> Result<Outcome> {
     execute!(terminal.backend_mut(), Hide)?;
 
     let theme = Theme { border: cli.border_color, cursor: cli.cursor_color };
-    let mut app = App::new(items, cli.prompt, cli.height);
+    let mut app = App::new(items, cli.prompt, cli.height, cli.multi);
     let outcome = event_loop(&mut terminal, &mut app, cli.simple, &theme);
 
     // `terminal.clear()` in Inline mode rewinds the cursor to viewport top
@@ -179,7 +186,7 @@ fn event_loop<B: ratatui::backend::Backend>(
             match event::read()? {
                 Event::Key(k) if k.kind == event::KeyEventKind::Press => match app.handle_key(k) {
                     Action::Continue => dirty = true,
-                    Action::Confirm(s) => return Ok(Outcome::Selected(s)),
+                    Action::Confirm(lines) => return Ok(Outcome::Selected(lines)),
                     Action::Cancel => return Ok(Outcome::Cancelled),
                 },
                 Event::Resize(_, _) => dirty = true,

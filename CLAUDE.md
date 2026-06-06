@@ -44,6 +44,11 @@ The crucial design point is the **separation of stdin and TUI I/O**:
 - Only the selection result is written to the process's stdout (i.e. the
   downstream pipe).
 
+`App` carries a `multi: bool` and a `selected: Vec<bool>` index-aligned to
+`items`. `Action::Confirm` always carries a `Vec<String>` (single-select wraps a
+1-element vec); `main.rs` writes each element on its own row, so a multi-select
+result is just N newline-separated lines downstream.
+
 ratatui uses `Viewport::Inline`, so the terminal is **not** switched to the
 alternate screen; only the inline region is rendered as a TUI.
 

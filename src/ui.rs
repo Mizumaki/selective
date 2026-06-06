@@ -1,10 +1,8 @@
-use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{
-    Block, BorderType, Borders, List, ListItem, ListState, Padding, Paragraph,
-};
+use ratatui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Padding, Paragraph};
+use ratatui::Frame;
 
 use crate::app::App;
 use crate::theme::Theme;
@@ -14,6 +12,14 @@ pub fn draw(f: &mut Frame, app: &App, simple: bool, theme: &Theme) {
         draw_simple(f, app);
     } else {
         draw_rich(f, app, theme);
+    }
+}
+
+fn sel_suffix(app: &App) -> String {
+    if app.multi() {
+        format!(" · {} sel", app.selected_count())
+    } else {
+        String::new()
     }
 }
 
@@ -29,16 +35,29 @@ fn draw_simple(f: &mut Frame, app: &App) {
     .areas(f.area());
 
     let header = format!(
-        "{} ({}/{})",
+        "{} ({}/{}{})",
         app.prompt(),
         app.cursor() + 1,
-        app.items().len()
+        app.items().len(),
+        sel_suffix(app),
     );
     f.render_widget(Paragraph::new(header), header_area);
 
     let items: Vec<ListItem> = app.items()[visible.clone()]
         .iter()
-        .map(|s| ListItem::new(s.as_str()))
+        .enumerate()
+        .map(|(i, s)| {
+            if app.multi() {
+                let mark = if app.selected()[visible.start + i] {
+                    "[x] "
+                } else {
+                    "[ ] "
+                };
+                ListItem::new(format!("{mark}{s}"))
+            } else {
+                ListItem::new(s.as_str())
+            }
+        })
         .collect();
     let mut state = ListState::default();
     state.select(Some(app.cursor().saturating_sub(visible.start)));
@@ -68,12 +87,19 @@ fn draw_rich(f: &mut Frame, app: &App, theme: &Theme) {
         Span::raw(" "),
         Span::styled(
             app.prompt().to_string(),
-            Style::default().fg(theme.border).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme.border)
+                .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" "),
     ]);
     let title_right = Line::from(Span::styled(
-        format!(" {}/{} ", app.cursor() + 1, app.items().len()),
+        format!(
+            " {}/{}{} ",
+            app.cursor() + 1,
+            app.items().len(),
+            sel_suffix(app),
+        ),
         Style::default().add_modifier(Modifier::DIM),
     ))
     .right_aligned();
@@ -91,6 +117,11 @@ fn draw_rich(f: &mut Frame, app: &App, theme: &Theme) {
         .title(title_right);
 
     let cursor_local = app.cursor().saturating_sub(visible.start);
+    let dim = Style::default().add_modifier(Modifier::DIM);
+    let cursor_style = Style::default()
+        .fg(theme.cursor)
+        .add_modifier(Modifier::BOLD);
+    let plain = Style::default();
     let mut items: Vec<ListItem> = Vec::with_capacity(visible.len() + indicator_rows as usize);
     if overflow {
         let text = if hidden_above > 0 {
@@ -98,50 +129,65 @@ fn draw_rich(f: &mut Frame, app: &App, theme: &Theme) {
         } else {
             String::new()
         };
-        items.push(ListItem::new(Line::from(Span::styled(
-            text,
-            Style::default().add_modifier(Modifier::DIM),
-        ))));
+        items.push(ListItem::new(Line::from(Span::styled(text, dim))));
     }
-    items.extend(app.items()[visible.clone()].iter().enumerate().map(|(i, s)| {
-        if i == cursor_local {
-            ListItem::new(Line::from(vec![
-                Span::styled(
-                    "❯ ",
-                    Style::default().fg(theme.cursor).add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
+    items.extend(
+        app.items()[visible.clone()]
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let is_cursor = i == cursor_local;
+                let mut spans: Vec<Span> = Vec::with_capacity(4);
+                if is_cursor {
+                    spans.push(Span::styled("❯ ", cursor_style));
+                } else {
+                    spans.push(Span::raw("  "));
+                }
+                if app.multi() {
+                    let on = app.selected()[visible.start + i];
+                    let mark = if on { "[x] " } else { "[ ] " };
+                    spans.push(Span::styled(mark, if on { cursor_style } else { dim }));
+                }
+                spans.push(Span::styled(
                     s.as_str(),
-                    Style::default().fg(theme.cursor).add_modifier(Modifier::BOLD),
-                ),
-            ]))
-        } else {
-            ListItem::new(Line::from(vec![Span::raw("  "), Span::raw(s.as_str())]))
-        }
-    }));
+                    if is_cursor { cursor_style } else { plain },
+                ));
+                ListItem::new(Line::from(spans))
+            }),
+    );
     if overflow {
         let text = if hidden_below > 0 {
             format!("  ↓ {hidden_below} more")
         } else {
             String::new()
         };
-        items.push(ListItem::new(Line::from(Span::styled(
-            text,
-            Style::default().add_modifier(Modifier::DIM),
-        ))));
+        items.push(ListItem::new(Line::from(Span::styled(text, dim))));
     }
 
     let list = List::new(items).block(block);
     f.render_widget(list, box_area);
 
-    let hint = Line::from(vec![
+    let mut hint_spans: Vec<Span> = vec![
         Span::raw("  "),
-        Span::styled("↑/↓", Style::default().add_modifier(Modifier::DIM)),
-        Span::styled(" move · ", Style::default().add_modifier(Modifier::DIM)),
-        Span::styled("↵", Style::default().add_modifier(Modifier::DIM)),
-        Span::styled(" confirm · ", Style::default().add_modifier(Modifier::DIM)),
-        Span::styled("esc", Style::default().add_modifier(Modifier::DIM)),
-        Span::styled(" cancel", Style::default().add_modifier(Modifier::DIM)),
-    ]);
-    f.render_widget(Paragraph::new(hint), footer_area);
+        Span::styled("↑/↓", dim),
+        Span::styled(" move · ", dim),
+    ];
+    if app.multi() {
+        hint_spans.push(Span::styled("[space]", dim));
+        hint_spans.push(Span::styled(" toggle · ", dim));
+        hint_spans.push(Span::styled("[Ctrl + a]", dim));
+        hint_spans.push(Span::styled(" select all · ", dim));
+        hint_spans.push(Span::styled("[Ctrl + d]", dim));
+        hint_spans.push(Span::styled(" all clear · ", dim));
+    }
+    hint_spans.push(Span::styled("↵", dim));
+    let confirm_label = if app.multi() {
+        " confirm selected · "
+    } else {
+        " confirm · "
+    };
+    hint_spans.push(Span::styled(confirm_label, dim));
+    hint_spans.push(Span::styled("[esc]", dim));
+    hint_spans.push(Span::styled(" cancel", dim));
+    f.render_widget(Paragraph::new(Line::from(hint_spans)), footer_area);
 }
