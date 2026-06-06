@@ -32,6 +32,28 @@ cd "$(git worktree list | awk '{print $1}' | selective --prompt "cd worktree:")"
 - Inline TUI built with **ratatui + crossterm** (does not switch the terminal to fullscreen).
 - **macOS / Linux supported** (Windows is out of scope).
 
+## Install
+
+### Homebrew
+
+```sh
+brew install Mizumaki/selective/selective
+```
+
+If you prefer to tap first:
+
+```sh
+brew tap Mizumaki/selective
+brew install selective
+```
+
+To upgrade to the latest release:
+
+```sh
+brew update
+brew upgrade selective
+```
+
 ## Usage
 
 ```
@@ -48,18 +70,9 @@ Options:
   -V, --version                 Version
 ```
 
-By default `selective` renders a rich inline TUI: a rounded border in the
-terminal's default text color with the prompt embedded on the top edge, an
-`n/total` counter on the right, and a dimmed key-hint footer below. Pass
-`--simple` to fall back to the original 1-line header + reverse-video cursor
-list, which is lighter and uses fewer rows.
+By default `selective` renders a rich inline TUI: a rounded border in the terminal's default text color with the prompt embedded on the top edge, an `n/total` counter on the right, and a dimmed key-hint footer below. Pass `--simple` to fall back to the original 1-line header + reverse-video cursor list, which is lighter and uses fewer rows.
 
-`--border-color` and `--cursor-color` accept either a color name
-(`reset` / `default`, `black`, `red`, `green`, `yellow`, `blue`, `magenta`,
-`cyan`, `gray`, `dark-gray`, `light-red`, `light-green`, `light-yellow`,
-`light-blue`, `light-magenta`, `light-cyan`, `white`) or a hex literal in the
-form `#RRGGBB` (e.g. `--cursor-color '#ff8800'`). `reset` (the default for
-`--border-color`) tracks the terminal's current foreground color.
+`--border-color` and `--cursor-color` accept either a color name (`reset` / `default`, `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `gray`, `dark-gray`, `light-red`, `light-green`, `light-yellow`, `light-blue`, `light-magenta`, `light-cyan`, `white`) or a hex literal in the form `#RRGGBB` (e.g. `--cursor-color '#ff8800'`). `reset` (the default for `--border-color`) tracks the terminal's current foreground color.
 
 ### Exit codes
 
