@@ -13,8 +13,10 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::backend::CrosstermBackend;
 use ratatui::{Terminal, TerminalOptions, Viewport};
 
+use ratatui::style::Color;
 use selective::app::{Action, App};
 use selective::input::read_lines;
+use selective::theme::{Theme, parse_color};
 
 #[derive(Parser, Debug)]
 #[command(name = "selective", version, about = "Interactive single-select filter")]
@@ -26,6 +28,18 @@ struct Cli {
     /// Max rows for the list viewport
     #[arg(long, default_value_t = 10)]
     height: u16,
+
+    /// Use the minimal rendering (1-line header + plain list)
+    #[arg(long)]
+    simple: bool,
+
+    /// Border + embedded prompt color: name (e.g. "cyan", "light-blue", "reset") or "#RRGGBB"
+    #[arg(long, value_name = "COLOR", value_parser = parse_color, default_value = "reset")]
+    border_color: Color,
+
+    /// Cursor arrow + selected row color: name (e.g. "yellow", "light-magenta") or "#RRGGBB"
+    #[arg(long, value_name = "COLOR", value_parser = parse_color, default_value = "cyan")]
+    cursor_color: Color,
 }
 
 enum Outcome {
@@ -78,7 +92,9 @@ fn run() -> Result<Outcome> {
     enable_raw_mode().context("enabling raw mode")?;
     let _raw_guard = RawGuard;
 
-    let viewport_h = cli.height.min(items.len() as u16).saturating_add(1).max(2);
+    let list_rows = cli.height.min(items.len() as u16);
+    let extra: u16 = if cli.simple { 1 } else { 7 };
+    let viewport_h = list_rows.saturating_add(extra).max(extra + 1);
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::with_options(
         backend,
@@ -86,8 +102,9 @@ fn run() -> Result<Outcome> {
     )?;
     execute!(terminal.backend_mut(), Hide)?;
 
+    let theme = Theme { border: cli.border_color, cursor: cli.cursor_color };
     let mut app = App::new(items, cli.prompt, cli.height);
-    let outcome = event_loop(&mut terminal, &mut app);
+    let outcome = event_loop(&mut terminal, &mut app, cli.simple, &theme);
 
     // `terminal.clear()` in Inline mode rewinds the cursor to viewport top
     // and clears from there to end of screen, so the shell prompt resumes
@@ -149,11 +166,13 @@ impl Drop for RawGuard {
 fn event_loop<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
+    simple: bool,
+    theme: &Theme,
 ) -> Result<Outcome> {
     let mut dirty = true;
     loop {
         if dirty {
-            terminal.draw(|f| selective::ui::draw(f, app))?;
+            terminal.draw(|f| selective::ui::draw(f, app, simple, theme))?;
             dirty = false;
         }
         if event::poll(Duration::from_millis(200))? {
