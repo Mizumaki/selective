@@ -88,7 +88,7 @@ By default `selective` renders a rich inline TUI: a rounded border in the termin
 - Empty lines are ignored.
 - CRLF (`\r\n`) is treated as LF.
 - If there are **0 candidates**, the TUI is not launched and the program exits with 1.
-- If there is **exactly 1 candidate**, the TUI is not launched; that line is written to stdout and the program exits with 0 (auto-confirm).
+- If there is **exactly 1 candidate**, the TUI is still launched and the user must explicitly confirm the selection (no auto-confirm).
 
 ### Multi-select (`-m` / `--multi`)
 
@@ -141,9 +141,9 @@ printf 'alpha\nbeta\ngamma\n' | ./target/release/selective
 printf 'alpha\nbeta\n' | ./target/release/selective; echo "exit=$?"
 # → Esc / Ctrl-C / q yields exit=130 with empty stdout
 
-# 3. Single line auto-confirms
+# 3. Single line still requires explicit confirmation
 printf 'only\n' | ./target/release/selective
-# → immediately outputs "only" and exits 0
+# → TUI launches with one row; Enter writes "only" and exits 0, Esc exits 130
 
 # 4. Empty input is an error
 : | ./target/release/selective; echo "exit=$?"
